@@ -79,13 +79,16 @@ pub struct Subscription<M> {
   datareader: no_key::SimpleDataReaderCdr<M>,
 }
 
-impl<M: 'static + DeserializeOwned> Subscription<M> {
+impl<M: 'static> Subscription<M> {
   // These must be created from Node
   pub(crate) fn new(datareader: no_key::SimpleDataReaderCdr<M>) -> Subscription<M> {
     Subscription { datareader }
   }
 
-  pub fn take(&self) -> ReadResult<Option<(M, MessageInfo)>> {
+  pub fn take(&self) -> ReadResult<Option<(M, MessageInfo)>>
+  where
+    M: DeserializeOwned,
+  {
     self.datareader.drain_read_notifications();
     let ds: Option<no_key::DeserializedCacheChange<M>> = self.datareader.try_take_one()?;
     Ok(ds.map(dcc_to_value_and_messageinfo))
@@ -100,7 +103,10 @@ impl<M: 'static + DeserializeOwned> Subscription<M> {
     Ok(ds.map(dcc_to_value_and_messageinfo))
   }
 
-  pub async fn async_take(&self) -> ReadResult<(M, MessageInfo)> {
+  pub async fn async_take(&self) -> ReadResult<(M, MessageInfo)>
+  where
+    M: DeserializeOwned,
+  {
     let async_stream = self.datareader.as_async_stream();
     pin_mut!(async_stream);
     match async_stream.next().await {
@@ -114,9 +120,10 @@ impl<M: 'static + DeserializeOwned> Subscription<M> {
   }
 
   // Returns an async Stream of messages with MessageInfo metadata
-  pub fn async_stream(
-    &self,
-  ) -> impl Stream<Item = ReadResult<(M, MessageInfo)>> + FusedStream + '_ {
+  pub fn async_stream(&self) -> impl Stream<Item = ReadResult<(M, MessageInfo)>> + FusedStream + '_
+  where
+    M: DeserializeOwned,
+  {
     self
       .datareader
       .as_async_stream()
@@ -130,10 +137,7 @@ impl<M: 'static + DeserializeOwned> Subscription<M> {
 
 // helper
 #[inline]
-fn dcc_to_value_and_messageinfo<M>(dcc: no_key::DeserializedCacheChange<M>) -> (M, MessageInfo)
-where
-  M: DeserializeOwned,
-{
+fn dcc_to_value_and_messageinfo<M>(dcc: no_key::DeserializedCacheChange<M>) -> (M, MessageInfo) {
   let mi = MessageInfo::from(&dcc);
   (dcc.into_value(), mi)
 }
