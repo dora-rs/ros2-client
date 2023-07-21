@@ -10,7 +10,10 @@ use rustdds::{
   rpc::SampleIdentity,
   *,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{
+  de::{DeserializeOwned, DeserializeSeed},
+  Serialize,
+};
 
 /// A ROS2 Publisher
 ///
@@ -72,7 +75,7 @@ impl<M: Serialize> Publisher<M> {
 ///
 /// Corresponds to a (simplified) [`DataReader`](rustdds::no_key::DataReader) in
 /// DDS
-pub struct Subscription<M: DeserializeOwned> {
+pub struct Subscription<M> {
   datareader: no_key::SimpleDataReaderCdr<M>,
 }
 
