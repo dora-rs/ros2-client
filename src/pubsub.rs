@@ -91,6 +91,15 @@ impl<M: 'static + DeserializeOwned> Subscription<M> {
     Ok(ds.map(dcc_to_value_and_messageinfo))
   }
 
+  pub fn take_seed<'de, S>(&self, seed: S) -> dds::ReadResult<Option<(M, MessageInfo)>>
+  where
+    S: DeserializeSeed<'de, Value = M>,
+  {
+    self.datareader.drain_read_notifications();
+    let ds: Option<no_key::DeserializedCacheChange<M>> = self.datareader.try_take_one_seed(seed)?;
+    Ok(ds.map(dcc_to_value_and_messageinfo))
+  }
+
   pub async fn async_take(&self) -> ReadResult<(M, MessageInfo)> {
     let async_stream = self.datareader.as_async_stream();
     pin_mut!(async_stream);
