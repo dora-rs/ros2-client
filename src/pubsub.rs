@@ -130,6 +130,20 @@ impl<M: 'static> Subscription<M> {
       .map(|result| result.map(dcc_to_value_and_messageinfo))
   }
 
+  // Returns an async Stream of messages with MessageInfo metadata
+  pub fn async_stream_seed<S>(
+    &self,
+    seed: S,
+  ) -> impl Stream<Item = ReadResult<(M, MessageInfo)>> + FusedStream + '_
+  where
+    S: for<'a> DeserializeSeed<'a, Value = M> + Clone + 'static,
+  {
+    self
+      .datareader
+      .as_async_stream_seed(seed)
+      .map(|result| result.map(dcc_to_value_and_messageinfo))
+  }
+
   pub fn guid(&self) -> rustdds::GUID {
     self.datareader.guid()
   }
