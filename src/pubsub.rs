@@ -131,12 +131,12 @@ impl<M: 'static> Subscription<M> {
   }
 
   // Returns an async Stream of messages with MessageInfo metadata
-  pub fn async_stream_seed<S>(
+  pub fn async_stream_seed<'de, S>(
     &self,
     seed: S,
   ) -> impl Stream<Item = ReadResult<(M, MessageInfo)>> + FusedStream + '_
   where
-    S: for<'a> DeserializeSeed<'a, Value = M> + Clone + 'static,
+    S: DeserializeSeed<'de, Value = M> + Clone + 'static,
   {
     self
       .datareader
