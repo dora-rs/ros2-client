@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeSeed};
 #[allow(unused_imports)]
 use log::{debug, error, info, warn};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -20,6 +20,7 @@ use super::{request_id, RmwRequestId, ServiceMapping};
 // to apply, unlike (De)Serializer or their adapters. ServiceMapping must be
 // known in order to decode or generate the wire representation.
 pub(super) trait Wrapper {
+  type R;
   fn from_bytes_and_ri(input_bytes: &[u8], encoding: RepresentationIdentifier) -> Self;
   fn bytes(&self) -> Bytes;
 }
@@ -31,6 +32,8 @@ pub(crate) struct RequestWrapper<R> {
 }
 
 impl<R: Message> Wrapper for RequestWrapper<R> {
+  type R = R;
+
   fn from_bytes_and_ri(input_bytes: &[u8], encoding: RepresentationIdentifier) -> Self {
     RequestWrapper {
       serialized_message: Bytes::copy_from_slice(input_bytes), // cloning here
@@ -121,6 +124,8 @@ pub(crate) struct ResponseWrapper<R> {
 }
 
 impl<R: Message> Wrapper for ResponseWrapper<R> {
+  type R = R;
+
   fn from_bytes_and_ri(input_bytes: &[u8], encoding: RepresentationIdentifier) -> Self {
     ResponseWrapper {
       serialized_message: Bytes::copy_from_slice(input_bytes), // cloning here
@@ -334,12 +339,20 @@ impl<RW> ServiceDeserializerAdapter<RW> {
 
 impl<RW: Wrapper> no_key::DeserializerAdapter<RW> for ServiceDeserializerAdapter<RW> {
   type Error = ReadError;
+  type Input = RW::R;
 
   fn supported_encodings() -> &'static [RepresentationIdentifier] {
     &Self::REPR_IDS
   }
 
-  fn from_bytes(input_bytes: &[u8], encoding: RepresentationIdentifier) -> ReadResult<RW> {
+  fn from_bytes_seed<'de, S>(
+    input_bytes: &[u8],
+    encoding: RepresentationIdentifier,
+    _seed: S,
+  ) -> Result<RW, Self::Error>
+  where
+    S: DeserializeSeed<'de, Value = Self::Input>,
+  {
     Ok(RW::from_bytes_and_ri(input_bytes, encoding))
   }
 }
